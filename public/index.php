@@ -27,23 +27,39 @@ try {
 // Creating product controller
 $productController = new ProductController($pdo);
 
+// Routes array
+$routes = [
+    'GET' => [
+        'products' => [$productController, 'getAllProducts'],
+    ],
+    'POST' => [
+        'products' => [$productController, 'createProduct'],
+    ],
+    'PUT' => [
+        'products/(\d+)' => [$productController, 'updateProduct'],
+    ],
+    'DELETE' => [
+        'products/(\d+)' => [$productController, 'deleteProduct'],
+    ],
+];
+
 // Server variables
 $method = $_SERVER['REQUEST_METHOD'];
 $uri = trim($_SERVER['REQUEST_URI'], '/');
 
-if ($method === 'GET' && $uri === 'products') {
-    $productController->getAllProducts();
-} elseif ($method === 'POST' && $uri === 'products') {
-    $data = json_decode(file_get_contents('php://input'), true);
-    $productController->createProduct($data);
-} elseif ($method === 'PUT' && preg_match('/products\/(\d+)/', $uri, $matches)) {
-    $id = (int)$matches[1];
-    $data = json_decode(file_get_contents('php://input'), true);
-    $productController->updateProduct($id, $data);
-} elseif ($method === 'DELETE' && preg_match('/products\/(\d+)/', $uri, $matches)) {
-    $id = (int)$matches[1];
-    $productController->deleteProduct($id);
-} else {
+// Checking if route exists
+$routeFound = false;
+
+foreach ($routes[$method] ?? [] as $routePattern => $handler) {
+    if (preg_match("#^{$routePattern}$#", $uri, $matches)) {
+        $routeFound = true;
+        array_shift($matches);
+        call_user_func_array($handler, $matches);
+        break;
+    }
+}
+
+if (!$routeFound) {
     http_response_code(404);
-    echo "Route not found. $uri";
+    echo json_encode(['error' => 'Route not found.']);
 }
